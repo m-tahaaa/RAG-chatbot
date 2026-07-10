@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF Grounded Chat</title>
+    <meta name="description" content="Ask questions against one Azure-hosted PDF source." />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-left"></div>
+    <div class="bg-orb bg-orb-right"></div>
+
+    <main class="shell">
+      <section class="hero card">
+        <div class="eyebrow">Single-source PDF chatbot</div>
+        <h1>Ask only from the configured Azure blob PDF.</h1>
+        <p>
+          This chatbot is grounded in one PDF that you already uploaded to Azure Blob Storage.
+          It does not accept user uploads and does not use web search.
+        </p>
+        <div class="status-row">
+          <span class="status-pill" id="status-pill">Loading source PDF…</span>
+          <span class="muted" id="document-meta"></span>
+        </div>
+      </section>
+
+      <section class="chat card">
+        <form id="chat-form" class="chat-form">
+          <label for="question">Ask a question</label>
+          <textarea id="question" name="question" rows="4" placeholder="What does the PDF say about..." required></textarea>
+          <div class="actions">
+            <button id="ask-btn" type="submit">Ask the PDF</button>
+            <button id="clear-btn" type="button" class="secondary">Clear</button>
+          </div>
+        </form>
+
+        <div class="answer-panel">
+          <div class="answer-header">
+            <h2>Answer</h2>
+            <span id="loading-indicator" class="muted"></span>
+          </div>
+          <div id="answer" class="answer-empty">Your answer will appear here.</div>
+        </div>
+
+        <div class="sources-panel">
+          <div class="answer-header">
+            <h2>Sources</h2>
+          </div>
+          <div id="sources" class="sources-empty">No sources yet.</div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

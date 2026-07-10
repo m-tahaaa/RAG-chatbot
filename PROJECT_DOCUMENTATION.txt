@@ -1,0 +1,76 @@
+Introduction
+------------
+This project is a FastAPI backend that enables question-answering over PDF documents by
+indexing their content in Azure Cognitive Search and serving grounded answers produced by
+an LLM. It returns answers with cited source snippets and remains functional even when the
+model is unavailable by returning the top context snippets.
+
+How we made it
+---------------
+- Developed a single-process FastAPI application (`main.py`) that exposes `/ask` and `/health`.
+- PDF text is extracted, chunked, and stored in an Azure Cognitive Search index.
+- The backend retrieves top-k relevant chunks for a user question and composes a grounded prompt.
+- Answers are produced either by:
+  - an API-key-based Azure OpenAI call (standard Azure OpenAI resource), or
+  - an AAD-authenticated Projects/Foundry Responses REST call (agent endpoint).
+- Robust error handling and fallbacks were added: schema-tolerant search, API/agent probes,
+  and a fallback that returns context snippets when model calls fail.
+
+Architecture
+------------
+Components:
+- Client: UI or API consumer that posts questions to the backend.
+- Backend: `main.py` (FastAPI) — orchestrates search, prompt construction, model invocation,
+  and response formatting.
+- Search: Azure Cognitive Search index holds chunked PDF text and metadata (chunk_id,
+  document_id, page_number, content, title, indexed_at).
+- Storage: Azure Blob Storage stores original PDF files (blob names referenced in metadata).
+- Model layer:
+  - API-key path: Azure OpenAI (deployment names) invoked via SDK client.
+  - Projects/Foundry path: Foundry Responses endpoint called via REST with AAD tokens.
+
+How components work together
+---------------------------
+1. PDF ingestion (upload/index): PDF is uploaded to Blob Storage; text is extracted and
+   chunked, then documents are uploaded to the Cognitive Search index with metadata.
+2. Query flow:
+   - Client POSTs to `/ask` with `question` and `top_k`.
+   - Backend calls Azure Cognitive Search to retrieve the top-k chunks for the question.
+   - The backend builds a constrained prompt from those chunks.
+   - Depending on configuration:
+     - For API-key mode the backend calls Azure OpenAI deployment and returns the model output.
+     - For Projects/Foundry mode the backend obtains an AAD token (DefaultAzureCredential or
+       Azure CLI fallback) and POSTs to the Responses endpoint; it tries multiple api-version
+       and payload shapes to maximize compatibility.
+   - If the model call fails, the backend returns the top context snippets as the answer.
+
+Why this architecture and alternatives
+-------------------------------------
+Chosen approach advantages:
+- Grounded retrieval-first design reduces hallucination by constraining the model to indexed
+  document content.
+- Azure Cognitive Search provides scalable text search and metadata filtering suited for RAG.
+- Supporting both API-key and Projects/Foundry agent paths increases deployment flexibility
+  (quick API-key setups for dev; AAD-protected agents for enterprise). 
+Alternatives considered:
+- Vector DB (e.g., specialized vector stores) instead of Azure Search: would improve dense
+  vector matching but add an extra infrastructure component; Azure Search already supports
+  hybrid search and is integrated with Azure services, reducing operational overhead.
+- Purely direct LLM ingestion (no retrieval): simpler but causes frequent hallucination and
+  poor traceability to source text.
+- Using only SDKs for Projects agent: would be ideal, but SDK compatibility varies; REST
+  fallback ensures agent support even when SDK methods are missing.
+
+Summary
+-------
+This backend implements a resilient, production-oriented RAG pattern: it indexes PDF content
+in Azure Cognitive Search, performs retrieval, and produces grounded answers via either a
+standard Azure OpenAI deployment (API-key) or a Foundry/Projects agent (AAD). Error handling
+and pragmatic fallbacks keep the API useful even when cloud model or auth failures occur.
+
+Files of interest
+-----------------
+- `main.py` — core application logic and endpoints.
+- `.env` — runtime configuration (search endpoint/key, OpenAI endpoint/key, deployment name,
+  and Projects vs API-key mode flag).
+- `requirements.txt` — Python dependencies.
